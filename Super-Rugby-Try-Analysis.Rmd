@@ -1,0 +1,94 @@
+---
+title: "Super-Rugby-Try-Analysis"
+author: "Andrew Mellor"
+date: "23/04/2020"
+output: 
+  prettydoc::html_pretty:
+    theme: cayman
+    bibliography: references.bib
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+
+The purpose of this document is to provide analysis about the playing patterns that lead to try scoring in the 2017 Super Rugby season.
+
+## Load required packages
+
+```{r packages, message=FALSE}
+library(tidyverse) # include all required packages at the start
+```
+
+## Data
+
+The data we will use for this activity is stored in the 2017_super-rugby_try-source-data.csv file. This data consists of tries that were scored during the 2017 Super Rugby competition (observations/rows). 
+
+This data was collected by a former University of Canberra student, Molly Coughlan, as part of a project that identified playing patterns that led to tries in super rugby. 
+The [data](https://unicanberra.instructure.com/courses/7493/files/1747546) was provided by Dr Jocelyn Mara from the University of Canberra.
+
+
+## Read data
+
+Read in the `2017_super-rugby_try-source-data.csv` file using the `read_csv()` function from the `readr` package. 
+
+```{r read_data, message=FALSE} 
+# read in the data
+# data dir should be in the working dir
+df <- read_csv("data/2017_super-rugby_try-source-data.csv")
+```
+
+## Checking the data
+
+Check the structure of the data file using `str()`:
+
+```{r structure, message=FALSE}
+str(df)
+```
+
+Check the first 6 rows of the data file using `head()`
+
+```{r head, message=FALSE}
+head(df)
+```
+
+Check the last 6 rows of the data file using `tail()`
+
+```{r tail, message=FALSE}
+tail(df)
+```
+
+Check for missing values using: sum()
+
+```{r na, message=FALSE}
+sum(is.na(df)) # count the missing values
+head(which(is.na(df), arr.ind = TRUE))
+```
+
+
+## Exploratory analysis
+
+### Try Scoring by Teams
+
+Analysing which teams score more tries than others.
+````{r bar}
+df%>%
+ggplot() +
+geom_bar(mapping = aes(x = attacking_team), stat = "count", fill = "blue", colour = "black") +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
+### Try Scoring by Game Time
+
+### Try Scoring by Play
+
+### Try Scoring by Field Area
+
+### Try Scoring by Time in Possession
+
+### Try Scoring by +/-
+
+## References
