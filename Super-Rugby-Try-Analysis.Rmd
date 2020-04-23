@@ -2,15 +2,14 @@
 title: "Super-Rugby-Try-Analysis"
 author: "Andrew Mellor"
 date: "23/04/2020"
-output: 
-  prettydoc::html_pretty:
-    theme: cayman
-    bibliography: references.bib
+output:
+toc: true
+toc_depth: true
     
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(error = TRUE)
 ```
 
 ## Overview
@@ -21,14 +20,52 @@ The purpose of this document is to provide analysis about the playing patterns t
 
 ```{r packages, message=FALSE}
 library(tidyverse) # include all required packages at the start
+library(ggplot2)
 ```
 
 ## Data
 
 The data we will use for this activity is stored in the 2017_super-rugby_try-source-data.csv file. This data consists of tries that were scored during the 2017 Super Rugby competition (observations/rows). 
 
-This data was collected by a former University of Canberra student, Molly Coughlan, as part of a project that identified playing patterns that led to tries in super rugby. 
-The [data](https://unicanberra.instructure.com/courses/7493/files/1747546) was provided by Dr Jocelyn Mara from the University of Canberra.
+This data was collected by a former University of Canberra student, Molly Coughlan, as part of a project that identified playing patterns that led to tries in super rugby^[Coughlan, Mountifield, Sharpe & Mara. (2019). How they scored the tries: applying cluster analysis to identify playing patterns that lead to tries in super rugby. International Journal of Performance Analysis in Sport. 19 (3) 435-451]. 
+
+The [data](https://unicanberra.instructure.com/courses/7493/files/1747546) was provided by Dr Jocelyn Mara from the University of Canberra^[University of Canberra. Applied Data Analysis in Sport PG (10157)].
+
+**It is probably import to note some of the data points that are not self explanatory:**
+
+1. try_no: a unique identification number given to each try
+
+2. round_no: an identification number to distinguish the round number the try was scored in
+
+3. attacking_team: the try-scoring team
+
+4. defending_team: the opposition team who conceded the try
+
+5. attacking_rank: the final league ranking at the end of the season of the try-scoring team
+
+6. defending_rank: the final league ranking at the end of the season of the opposition team
+
+7. attacking_conference: the conference group of the try-scoring team
+
+8. defending_conference: the conference group of the opposition team
+
+9. game_time: the game time in minutes when the try was scored
+
+10. try_source: the initial source of possession for the attacking team preceding the try
+
+11. final_source: the event that directly preceded the try and resulted in the try being scored
+
+12. phases: the total number of phases between gaining possession, and the try being scored (a phase is from one ruck to the next ruck)
+
+13. time_from_source: the time taken from gaining possession to scoring the try, in seconds
+
+14. possession_zone: the zone on the field the attacking team gained possession of the ball before scoring the try (A = attacking 22m line to try-line, B = halfway to attacking 22m line, C = defensive 22m line to halfway, D = )
+
+15. offloads: the number of offloads from gaining possession to the try being scored
+
+16. passes: the number of passes from gaining possession to the try being scored
+
+17. total_passes: the number of offloads plus passes
 
 
 ## Read data
@@ -36,36 +73,31 @@ The [data](https://unicanberra.instructure.com/courses/7493/files/1747546) was p
 Read in the `2017_super-rugby_try-source-data.csv` file using the `read_csv()` function from the `readr` package. 
 
 ```{r read_data, message=FALSE} 
+df <- read_csv("data/2017_super-rugby_try-source-data.csv") 
 # read in the data
-# data dir should be in the working dir
-df <- read_csv("data/2017_super-rugby_try-source-data.csv")
+# data dir should be in the working directory
 ```
 
 ## Checking the data
 
 Check the structure of the data file using `str()`:
 
-```{r structure, message=FALSE}
-str(df)
+```{r structure, message=FALSE, results='hide'}
+str(df) # provides structure of df
+
+
+head(df) # shows first 6 rows of df
+
+
+tail(df) # shows last 6 rows of df
 ```
 
-Check the first 6 rows of the data file using `head()`
 
-```{r head, message=FALSE}
-head(df)
-```
 
-Check the last 6 rows of the data file using `tail()`
+Check for missing values using: `sum()`:
 
-```{r tail, message=FALSE}
-tail(df)
-```
-
-Check for missing values using: sum()
-
-```{r na, message=FALSE}
+```{r na, message=FALSE, results='hide'}
 sum(is.na(df)) # count the missing values
-head(which(is.na(df), arr.ind = TRUE))
 ```
 
 
@@ -74,21 +106,185 @@ head(which(is.na(df), arr.ind = TRUE))
 ### Try Scoring by Teams
 
 Analysing which teams score more tries than others.
-````{r bar}
-df%>%
-ggplot() +
-geom_bar(mapping = aes(x = attacking_team), stat = "count", fill = "blue", colour = "black") +
+````{r bar1}
+try_teams <- df %>% 
+group_by(attacking_team) %>%
+count
+# In order to plot this in ascending order we can calculate number of tries scored be each team into a new data fram (try_teams)
+
+names(try_teams)[names(try_teams) == "n"] <- "Tries"
+
+try_teams %>%
+ggplot(aes(x = reorder(attacking_team, -Tries), y = Tries)) +
+geom_bar(stat = "identity", fill = "darkgreen", colour = "royalblue") + 
 theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ````
 
 ### Try Scoring by Game Time
+Gives an analytical view of the number of tries scored in each minute of the game (80 minutes plus injury time). Coaches often point to the end of each half as areas of sports where teams can score more easily (as players get tired).
+
+It is interesting to note that the 40th minute and 80-83 minute (if we combined them) are quite high. 
+
+But there does not appear to be any pattern.
+
+````{r bar2}
+df%>%
+ggplot() +
+geom_bar(mapping = aes(x = game_time), stat = "count", fill = "white", colour = "purple")
+````
 
 ### Try Scoring by Play
 
+Here we can see the Final Source that leads to each try. Multiphase (held possession with many passes) is the highest by far. 
+
+Set pieces Lineout and Scrum are also quite high, whilst turnover events like Chargedowns, Handling Errors, Intercept, Ruck Turnover and Tackle Turnover are relatively low.
+
+````{r bar3}
+df %>%
+ggplot(aes(x = final_source), stat = "count") +
+geom_bar(fill = "black", colour = "red") + 
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
 ### Try Scoring by Field Area
+
+The probability of scoring should be higher the closer you gain possession to your attacking try line, it appears that approximately 70 % of tries originate inside the attacking half of the field (zones A & B).
+
+````{r bar4}
+df %>%
+count(possession_zone) %>%
+mutate(prop = round(prop.table(n), 2)) %>%
+ggplot() + 
+geom_bar(mapping = aes(x = possession_zone, y = prop), colour = "darkgreen", fill = "skyblue", stat = "identity")
+````
+
+
+Here we can look at the teams and the zones each team scores the majority of their tries from. The Brumbies, Cheetahs and Reds all score more than 50% of their tries from inside their attacking 22yd line. 
+
+The Bulls score less than 25% of their tries from inside their attacking 22yd line.
+The rebels score the most from attacking form inside their own 22yd line.
+
+````{r bar-probability}
+team_possession_zone <-df %>%
+count(attacking_team,try_no, possession_zone) %>%
+group_by(attacking_team) %>%
+mutate(prob = round(prop.table(n), 2))
+
+team_possession_zone %>%
+ggplot(aes(x = attacking_team, y = prob, fill = possession_zone)) +
+geom_bar(position = "fill",stat = "identity") +
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
 
 ### Try Scoring by Time in Possession
 
+The amount of time from gaining possession until the try is scored (in seconds).Very interesting to note, particularly since many teams hold the ball for long periods of time that after about 12 seconds the probability of a try being scored stats to decrease.
+
+Slow play Rugby Union does not reflect a heavy try scoring pattern.
+
+````{r histogram}
+df %>%
+ggplot(aes(x = time_from_source)) + 
+geom_histogram(mapping = aes(y = ..density..), colour = "black", fill = "green", binwidth = 5) +
+geom_density(alpha = 0.2, fill = "blue")
+````
+
+### Try Scoring by Conference
+
+Analysing which conference (the sum of the teams in that conference) score more tries than others.
+Interesting to note that there are 18 teams, so 5 teams in the NZ & Aus conferences, but only 4 teams in each of the SA conferences.
+
+````{r bar5}
+try_conference <- df %>%
+group_by(attacking_conf) %>%
+count
+# In order to plot this in ascending order we could calculate number of tries scored be each team in each conference into a new data fram (try_conference)
+
+names(try_conference)[names(try_conference) == "n"] <- "Tries"
+
+try_conference %>%
+ggplot(aes(x = reorder(attacking_conf, -Tries), y = Tries)) +
+geom_bar(stat = "identity", fill = "black", colour = "white") + theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
+
+### Relationship between Try Scoring and Number of Phases
+
+We would expect that teams that score more tries would have more phases of play.
+
+````{r point1}
+phases_tries <-df %>%
+group_by(attacking_team) %>% 
+summarise(n(), sum(phases))
+
+
+names(phases_tries)[names(phases_tries) == "n()"] <- "tries"
+names(phases_tries)[names(phases_tries) == "sum(phases)"] <- "phases"
+
+phases_tries %>%
+ggplot(mapping = aes(x = tries, y = phases)) +
+geom_point(alpha = 0.7, size = 4, colour = "red") +
+geom_smooth()
+````
+
+### Relationship between Try Scoring and Offloads
+
+Interesting to see correlation between offloads (where a player being tackled passes the ball) and number of tries. Offloads are a good method for a team to commit one or more defenders to one attacking player and then release the ball to create an overload (2 v 1) somewhere else.
+
+It would make sense that more offloads correlates to number of tries.
+````{r point2}
+offloads_tries <-df %>%
+group_by(attacking_team) %>% 
+summarise(n(), sum(offloads))
+
+
+names(offloads_tries)[names(offloads_tries) == "n()"] <- "tries"
+names(offloads_tries)[names(offloads_tries) == "sum(offloads)"] <- "offloads"
+
+offloads_tries %>%
+ggplot(mapping = aes(x = tries, y = offloads)) +
+geom_point(alpha = 0.7, size = 4, colour = "red") +
+geom_smooth()
+````
+
 ### Try Scoring by +/-
+
+Let's now look at the defensive records of each team, then we can look at their Try Difference.
+````{r bar6}
+try_teams_defence <- df %>%
+group_by(defending_team) %>%
+count
+
+# In order to plot this in ascending order we can calculate number of tries scored be each team into a new data fram (try_teams)
+
+names(try_teams_defence)[names(try_teams_defence) == "n"] <- "Tries_Conceded"
+
+try_teams_defence %>%
+ggplot(aes(x = reorder(defending_team, -Tries_Conceded), y = Tries_Conceded)) +
+geom_bar(stat = "identity", fill = "dodgerblue", colour = "white") + 
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
+And here are the Try Scoring Differences for each team
+```` {r Bar7}
+try_difference <-merge(try_teams, try_teams_defence, by.x="attacking_team", by.y="defending_team")
+
+try_difference <-mutate(try_difference, Try_Difference = Tries - Tries_Conceded)
+
+try_difference %>%
+ggplot(aes(x = reorder(attacking_team, -Try_Difference), y = Try_Difference)) +
+geom_bar(stat = "identity", fill = "darkgreen", colour = "white") + 
+theme(axis.text.x = element_text(angle = 45, hjust = 1))
+````
+
+Interesting side note to the 2017 Super Rugby season was that the Crusaders were the eventual champions, defeating the Lions in the final. 
+
+The Lions were the team that finished top of the overall ladder.
+
+The Hurricanes who were the highest try scoring team and had the highest try scoring difference were ranked second in their conference, and effectively 3rd overall but due to the quirks of Super Rugby were ranked behind the Stormers and the Brumbies in 5th place.
+
+Of the 9 teams with a positive try difference the Blues (7th) and the Jaguares (8th) missed out while the Sharks (9th) made the finals (top 8 ranked teams).
+
 
 ## References
