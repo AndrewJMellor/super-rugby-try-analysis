@@ -226,6 +226,7 @@ names(phases_tries)[names(phases_tries) == "sum(phases)"] <- "phases"
 phases_tries %>%
 ggplot(mapping = aes(x = tries, y = phases)) +
 geom_point(alpha = 0.7, size = 4, colour = "red") +
+geom_text(aes(label = attacking_team), nudge_y =-10) + 
 geom_smooth()
 ````
 
@@ -246,7 +247,8 @@ names(offloads_tries)[names(offloads_tries) == "sum(offloads)"] <- "offloads"
 offloads_tries %>%
 ggplot(mapping = aes(x = tries, y = offloads)) +
 geom_point(alpha = 0.7, size = 4, colour = "red") +
-geom_smooth()
+geom_text(aes(label = attacking_team), nudge_y = 3) + 
+geom_smooth(method = "lm")
 ````
 
 ### Try Scoring by +/-
